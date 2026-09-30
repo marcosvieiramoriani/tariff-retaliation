@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tariff Retaliation Explorer</title>
+<meta name="description" content="Pick two countries and see which products one could tariff to hurt the other most while hurting itself least. Built on CEPII BACI / UN Comtrade data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F3F4F1;
+  --surface: #FFFFFF;
+  --ink: #1A2327;
+  --muted: #5B6770;
+  --rule: #D5D9D4;
+  --track: #E4E7E2;
+  --a: #1F5C99;      /* country imposing tariffs */
+  --b: #A0336B;      /* country targeted */
+  --a-soft: #DCE7F2;
+  --b-soft: #F3DDE8;
+  --focus: #1F5C99;
+  --font: "Archivo", "Helvetica Neue", Arial, system-ui, sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #151B1E; --surface: #1C2428; --ink: #E6EAEC; --muted: #9AA6AD;
+    --rule: #2E383D; --track: #2A3338; --a: #7DB0E3; --b: #E389B7;
+    --a-soft: #1F3347; --b-soft: #432536; --focus: #7DB0E3;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151B1E; --surface: #1C2428; --ink: #E6EAEC; --muted: #9AA6AD;
+  --rule: #2E383D; --track: #2A3338; --a: #7DB0E3; --b: #E389B7;
+  --a-soft: #1F3347; --b-soft: #432536; --focus: #7DB0E3;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font); font-size: 17px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+a { color: var(--a); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+/* ---------- header ---------- */
+header.top { border-bottom: 1px solid var(--rule); }
+header.top .wrap { display: flex; justify-content: space-between; align-items: center; min-height: 56px; gap: 16px; }
+.brand { font-weight: 700; font-stretch: 112%; font-size: 15px; letter-spacing: .01em; }
+header.top nav a { color: var(--muted); text-decoration: none; font-size: 15px; margin-left: 18px; }
+header.top nav a:hover { color: var(--ink); text-decoration: underline; }
+
+/* ---------- hero question ---------- */
+.hero { padding: 44px 0 28px; }
+.question {
+  font-size: clamp(30px, 5.2vw, 56px); line-height: 1.12; font-weight: 650;
+  font-stretch: 88%; letter-spacing: -0.015em; margin: 0; max-width: 17em;
+}
+.question select {
+  appearance: none; -webkit-appearance: none;
+  font: inherit; font-stretch: inherit; letter-spacing: inherit; color: inherit;
+  background: transparent; border: 0; border-bottom: 4px solid currentColor;
+  padding: 0 1.05em 0 0; margin: 0; cursor: pointer; max-width: 100%;
+  background-repeat: no-repeat; background-position: right .1em center; background-size: .55em;
+}
+.question .measure { position: absolute; visibility: hidden; white-space: nowrap; left: -9999px; }
+.question select option { font-size: 17px; color: #1A2327; }
+#selA { color: var(--a); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231F5C99'/%3E%3C/svg%3E"); }
+#selB { color: var(--b); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A0336B'/%3E%3C/svg%3E"); }
+.lede { color: var(--muted); max-width: 40em; margin: 18px 0 0; font-size: 18px; }
+.lede .ka { color: var(--a); font-weight: 600; }
+.lede .kb { color: var(--b); font-weight: 600; }
+
+/* ---------- controls ---------- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-end;
+  padding: 18px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+}
+.control { display: flex; flex-direction: column; gap: 6px; }
+.control > .label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button {
+  font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--ink);
+  padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--rule);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; }
+.checks label { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; }
+.hint { font-size: 13px; color: var(--muted); margin: 2px 0 0; max-width: 44em; }
+.checks input { width: 17px; height: 17px; accent-color: var(--ink); margin: 0; }
+
+/* ---------- leverage ---------- */
+.leverage { padding: 28px 0 4px; }
+.lev-kicker { font-size: 14px; color: var(--muted); margin: 0 0 4px; }
+.lev-title { font-size: clamp(21px, 2.6vw, 26px); line-height: 1.25; font-weight: 650; font-stretch: 92%; margin: 0 0 14px; max-width: 30em; }
+.lev-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--track); max-width: 640px; }
+.lev-bar div { transition: width .4s ease; }
+.lev-a { background: var(--a); }
+.lev-b { background: var(--b); }
+.lev-legend { display: flex; justify-content: space-between; gap: 16px; max-width: 640px; font-size: 14px; margin-top: 8px; }
+.lev-legend span:first-child { color: var(--a); }
+.lev-legend span:last-child { color: var(--b); text-align: right; }
+.lev-legend b { font-weight: 700; }
+.lev-note { color: var(--muted); font-size: 15px; max-width: 44em; margin: 12px 0 0; }
+
+/* ---------- ranking heading ---------- */
+.rank-head { padding: 40px 0 0; }
+.rank-head h2 { font-size: 30px; font-weight: 650; font-stretch: 88%; letter-spacing: -0.01em; margin: 0 0 8px; }
+.rank-head p { color: var(--muted); max-width: 44em; margin: 0; }
+.rank-head .kb { color: var(--b); font-weight: 500; }
+.rank-head .ka { color: var(--a); font-weight: 500; }
+
+/* ---------- summary ---------- */
+.summary { padding: 14px 0 6px; font-size: 16px; color: var(--muted); max-width: 46em; }
+.summary strong { color: var(--ink); font-weight: 600; }
+
+/* ---------- ranking ---------- */
+.ranking { list-style: none; margin: 0; padding: 0; }
+.card {
+  display: grid; grid-template-columns: 2.2em 1fr; gap: 0 18px;
+  padding: 26px 0; border-bottom: 1px solid var(--rule);
+}
+.rank { font-size: 28px; font-weight: 300; font-stretch: 75%; color: var(--muted); line-height: 1; padding-top: 24px; }
+.code {
+  display: flex; gap: .28em; font-weight: 750; font-stretch: 125%;
+  font-size: clamp(26px, 3.6vw, 38px); line-height: 1; margin-bottom: 10px;
+}
+.code span:nth-child(1) { color: var(--ink); }
+.code span:nth-child(2) { color: var(--ink); opacity: .72; }
+.code span:nth-child(3) { color: var(--ink); opacity: .48; }
+.code-label { font-size: 13px; color: var(--muted); margin: 0 0 2px; }
+.code-legend { font-size: 13px; color: var(--muted); margin: -4px 0 10px; }
+.card h3 { font-size: 19px; line-height: 1.35; margin: 0 0 4px; font-weight: 600; max-width: 42em; }
+.chapter { font-size: 14px; color: var(--muted); margin: 0 0 16px; }
+.figures { display: flex; flex-wrap: wrap; gap: 10px 36px; margin: 0 0 18px; }
+.figures div { min-width: 8em; }
+.figures dt { font-size: 13px; color: var(--muted); }
+.figures dd { margin: 0; font-size: 22px; font-weight: 650; font-stretch: 92%; }
+.bars { display: grid; gap: 12px; max-width: 620px; margin-bottom: 16px; }
+.bar .bar-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-bottom: 5px; }
+.bar .bar-head b { font-weight: 700; }
+.bar .track { height: 10px; background: var(--track); border-radius: 5px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 5px; transition: width .35s ease; }
+.bar.b .bar-head b { color: var(--b); }
+.bar.b .fill { background: var(--b); }
+.bar.a .bar-head b { color: var(--a); }
+.bar.a .fill { background: var(--a); }
+.explain { margin: 0 0 8px; max-width: 44em; font-size: 16px; }
+.alts { margin: 0; font-size: 15px; color: var(--muted); max-width: 44em; }
+.alts b { color: var(--ink); font-weight: 600; }
+.flag {
+  display: inline-block; font-size: 13px; padding: 2px 8px; border-radius: 4px;
+  background: var(--a-soft); color: var(--ink); margin: 0 0 12px;
+}
+.more { padding: 18px 0 0; }
+.btn {
+  font: inherit; font-size: 15px; padding: 9px 16px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink);
+}
+.btn:hover { background: var(--ink); color: var(--paper); }
+.empty { padding: 32px 0; color: var(--muted); max-width: 40em; }
+
+/* ---------- explorer ---------- */
+section.block { padding: 56px 0 8px; }
+section.block h2 { font-size: 30px; font-weight: 650; font-stretch: 88%; letter-spacing: -0.01em; margin: 0 0 8px; }
+section.block > p.intro { color: var(--muted); max-width: 44em; margin: 0 0 20px; }
+.tree-wrap { overflow-x: auto; border-top: 2px solid var(--ink); }
+.tree { min-width: 640px; }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 7.5em 5.5em 5.5em 7em;
+  gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--rule); font-size: 15px;
+}
+.row.head { font-size: 13px; color: var(--muted); padding: 8px 0; }
+.row .num { text-align: right; }
+.row.head .num { text-align: right; }
+.row .de { color: var(--b); font-weight: 600; }
+.row .di { color: var(--a); font-weight: 600; }
+.toggle {
+  font: inherit; background: none; border: 0; color: inherit; text-align: left; cursor: pointer;
+  padding: 0; display: flex; gap: 10px; align-items: baseline; width: 100%;
+}
+.toggle .caret { display: inline-block; width: .8em; color: var(--muted); transition: transform .2s ease; }
+.toggle[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.toggle .hs { font-weight: 700; font-stretch: 115%; min-width: 3.4em; }
+.lvl-1 .toggle, .lvl-1 .leaf { padding-left: 1.6em; }
+.lvl-2 .leaf { padding-left: 3.4em; }
+.lvl-1 { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+.lvl-2 { background: var(--surface); }
+.leaf { display: flex; gap: 10px; align-items: baseline; }
+.leaf .hs { font-weight: 700; font-stretch: 115%; min-width: 4.4em; }
+.row.excluded { opacity: .45; }
+.row .name { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- method ---------- */
+.method { max-width: 44em; }
+.method h3 { font-size: 19px; margin: 32px 0 6px; }
+.method p, .method li { font-size: 16px; }
+.formula {
+  display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0;
+  padding: 16px 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; font-size: 15px;
+}
+.formula b { font-weight: 700; }
+table.valid { border-collapse: collapse; font-size: 15px; margin: 10px 0; width: 100%; }
+table.valid th, table.valid td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--rule); }
+table.valid th:first-child, table.valid td:first-child { text-align: left; }
+table.valid th { font-weight: 600; color: var(--muted); font-size: 13px; }
+
+footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40px; font-size: 14px; color: var(--muted); }
+
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .hero { padding: 30px 0 20px; }
+  .card { grid-template-columns: 1fr; }
+  .rank { font-size: 15px; padding: 0 0 6px; }
+  .rank::before { content: "#"; }
+  .figures dd { font-size: 19px; }
+  header.top nav a { margin-left: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar .fill, .toggle .caret, .lev-bar div { transition: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Tariff Retaliation Explorer</div>
+    <nav><a href="#explore">Sectors</a><a href="#method">Method</a></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1 class="question">
+      If <span id="artA"></span><select id="selA" aria-label="Country imposing tariffs"></select>
+      puts tariffs on <span id="artB"></span><select id="selB" aria-label="Country targeted"></select>,<span class="measure" id="measure" aria-hidden="true"></span>
+      which products hurt it most?
+    </h1>
+    <p class="lede" id="lede">Loading trade data…</p>
+  </section>
+
+  <div class="controls" role="group" aria-label="Ranking options">
+    <div class="control">
+      <span class="label">Rank by</span>
+      <div class="seg" id="segMode">
+        <button type="button" data-v="impact" aria-pressed="true">Exposed value</button>
+        <button type="button" data-v="ratio" aria-pressed="false">Dependence only</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="label">Minimum yearly trade</span>
+      <div class="seg" id="segMin">
+        <button type="button" data-v="10" aria-pressed="false">$10M</button>
+        <button type="button" data-v="50" aria-pressed="true">$50M</button>
+        <button type="button" data-v="250" aria-pressed="false">$250M</button>
+        <button type="button" data-v="1000" aria-pressed="false">$1B</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="label">Max. reliance on the target</span>
+      <div class="seg" id="segDi">
+        <button type="button" data-v="0.3" aria-pressed="false">30%</button>
+        <button type="button" data-v="0.5" aria-pressed="true">50%</button>
+        <button type="button" data-v="0.7" aria-pressed="false">70%</button>
+      </div>
+    </div>
+    <div class="control">
+      <span class="label">Leave out</span>
+      <div class="checks">
+        <label><input type="checkbox" id="chkEnergy"> Energy (ch. 27)</label>
+        <label><input type="checkbox" id="chkPharma"> Medicines (ch. 30)</label>
+        <label><input type="checkbox" id="chkSanc" checked> Sanctioned suppliers</label>
+      </div>
+      <p class="hint">Governments rarely tariff energy or medicines, and sanctioned countries are not realistic replacement suppliers.</p>
+    </div>
+  </div>
+
+  <div class="leverage" id="leverage" aria-live="polite"></div>
+  <div class="rank-head">
+    <h2 id="rankTitle">Top targets</h2>
+    <p id="rankIntro"></p>
+  </div>
+  <p class="summary" id="summary"></p>
+  <ol class="ranking" id="ranking" aria-live="polite"></ol>
+  <div class="more" id="more"></div>
+
+  <section class="block" id="explore">
+    <h2>Explore by sector</h2>
+    <p class="intro" id="exploreIntro">Every product traded between the two countries, grouped by HS chapter and heading. Open a row to go one level deeper.</p>
+    <div class="tree-wrap"><div class="tree" id="tree"></div></div>
+  </section>
+
+  <section class="block method" id="method">
+    <h2>Method</h2>
+    <p>The tool follows one idea: a tariff works best on products the target country depends on selling to you, that you do not depend on buying from it, and that the rest of the world can supply instead.</p>
+
+    <h3>Three ratios per product</h3>
+    <div class="formula">
+      <b style="color:var(--b)">Export dependence</b><span>Target's exports to you ÷ target's exports to the world. High means the target has few other buyers.</span>
+      <b style="color:var(--a)">Import dependence</b><span>Your imports from the target ÷ your imports from the world. Low means the tariff barely touches your own supply. Above the cap (50% by default) the product is dropped: the tariff would hit you harder than the target.</span>
+      <b>Substitution</b><span>Exports of the product by third countries (the world minus you and the target) ÷ what you buy from the target. Below 1× the product is dropped: nobody else could fill the gap.</span>
+    </div>
+    <h3>Ranking</h3>
+    <div class="formula">
+      <b>Exposed value</b><span>Trade value × export dependence × (1 − import dependence). The part of the flow the target could not easily sell elsewhere, discounted by the cost to you.</span>
+      <b>Dependence only</b><span>Export dependence × (1 − import dependence). Surfaces small, highly exposed niches, often the politically sensitive ones.</span>
+    </div>
+    <p>Exposed value is a score in dollars, not a forecast of losses. It does not know the tariff rate, how prices would react or how long redirecting sales would take. Use it to compare products and countries, not to predict what anyone would lose.</p>
+    <p>Ratios for chapters and headings are computed from summed trade flows, not averaged across products, so large products weigh more.</p>
+    <h3>Three fixed rules</h3>
+    <ul>
+      <li>You never tariff a product if too much of your imports of it come from the target. The default cap is 50%; "Max. reliance on the target" lets you try a stricter 30% or a bolder 70%, but the cap cannot be switched off.</li>
+      <li>The target must rely on you more than you rely on it for that product (export dependence above import dependence). Otherwise the tariff hurts you more than them.</li>
+      <li>Third countries must be able to replace the target (substitution of at least 1×).</li>
+    </ul>
+    <p>The second rule is the idea of asymmetric interdependence: trade gives power to the side that needs the other less. Albert Hirschman set it out in <i>National Power and the Structure of Foreign Trade</i> (1945), and Robert Keohane and Joseph Nye developed it in <i>Power and Interdependence</i> (1977).</p>
+    <h3>Leverage index</h3>
+    <p>Before asking where to strike, a country should ask whether to strike at all. The index adds up the exposed value of every qualifying product in both directions and compares them: exposed value of B to A ÷ (exposed value of B to A + exposed value of A to B), from 0 to 100. Above 50, the country imposing tariffs has the stronger hand; below 50, the target could retaliate harder.</p>
+    <p>The 50% cap came from testing. Without it, the model told South Korea to tariff Chinese memory chips, a product Korea buys almost entirely from China, much of it made in Korean-owned plants there. A discount on dependence was not enough; above a threshold the product has to go.</p>
+
+    <h3>Data</h3>
+    <p id="dataNote">CEPII BACI, built from UN Comtrade. BACI reconciles what exporters and importers report into one value per flow, at the 6-digit Harmonized System level (about 5,600 products). Values are yearly averages in US dollars.</p>
+
+    <h3>Does it work? The soybean test</h3>
+    <p>An earlier hand-made analysis of China's options against the US singled out soybeans (HS 120190). The model reaches the same answer on its own, and so did Beijing: China targeted US soybeans in 2018 and again in 2025.</p>
+    <table class="valid">
+      <thead><tr><th>Soybeans, US to China</th><th>Manual study (Trade Map)</th><th>This model (BACI)</th></tr></thead>
+      <tbody>
+        <tr><td>Yearly exports</td><td>$15.2B</td><td id="vSoyX">$15.3B</td></tr>
+        <tr><td>US export dependence</td><td>54.3%</td><td id="vSoyDE">52.3%</td></tr>
+        <tr><td>China import dependence</td><td>25.1%</td><td id="vSoyDI">29.0%</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What the model leaves out</h3>
+    <ul>
+      <li>Political and strategic judgement. Energy and medicines score high because they are large flows, yet governments rarely tariff them. Use the "Leave out" filters to see the difference.</li>
+      <li>Supply chains. Tariffs on components raise costs for your own manufacturers, even when other suppliers exist.</li>
+      <li>Time. Switching suppliers takes contracts, logistics and months; the substitution ratio measures capacity, not speed.</li>
+      <li>Reaction. It is a snapshot, not a model of escalation, WTO rules or exchange rates.</li>
+      <li>Sanctions are simplified: for Western countries, Russia, Belarus, Iran and North Korea are not counted as alternative suppliers.</li>
+      <li>EU member states share one trade policy, so they can be targeted but only the EU as a whole can retaliate.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Built by Marcos Vieira Moriani. Data: CEPII BACI (UN Comtrade). This is an analytical exercise, not policy advice.
+  </div>
+</footer>
+
+<script>
+/* ================= reference data ================= */
+const EN_NAMES = {
+  USA: "United States", CHN: "China", JPN: "Japan", GBR: "United Kingdom", IND: "India",
+  CAN: "Canada", KOR: "South Korea", MEX: "Mexico", BRA: "Brazil", AUS: "Australia",
+  RUS: "Russia", TUR: "Türkiye", IDN: "Indonesia", SAU: "Saudi Arabia", CHE: "Switzerland",
+  NOR: "Norway", ARG: "Argentina", ZAF: "South Africa", VNM: "Vietnam", THA: "Thailand",
+  MYS: "Malaysia", SGP: "Singapore", ISR: "Israel", ARE: "United Arab Emirates", CHL: "Chile",
+  DEU: "Germany", FRA: "France", ITA: "Italy", ESP: "Spain", NLD: "Netherlands",
+  POL: "Poland", BEL: "Belgium", IRL: "Ireland", EUU: "European Union",
+  S19: "Taiwan", HKG: "Hong Kong", PRY: "Paraguay", QAT: "Qatar", URY: "Uruguay",
+  UKR: "Ukraine", NZL: "New Zealand", PER: "Peru", COL: "Colombia", PHL: "Philippines",
+  KAZ: "Kazakhstan", IRN: "Iran", PRK: "North Korea", BLR: "Belarus", LAO: "Laos",
+  CZE: "Czechia", COD: "DR Congo", BOL: "Bolivia", VEN: "Venezuela", SYR: "Syria"
+};
+const CHAPTERS = {
+  "01":"Live animals","02":"Meat and edible offal","03":"Fish and seafood","04":"Dairy, eggs and honey",
+  "05":"Other animal products","06":"Live plants and cut flowers","07":"Vegetables","08":"Fruit and nuts",
+  "09":"Coffee, tea and spices","10":"Cereals","11":"Milling products, malt and starches",
+  "12":"Oil seeds, grains and fodder","13":"Gums, resins and plant extracts","14":"Other vegetable products",
+  "15":"Fats and oils","16":"Meat and fish preparations","17":"Sugars and confectionery","18":"Cocoa",
+  "19":"Cereal, flour and bakery products","20":"Vegetable and fruit preparations",
+  "21":"Miscellaneous food preparations","22":"Beverages and spirits","23":"Food residues and animal feed",
+  "24":"Tobacco","25":"Salt, sulphur, stone and cement","26":"Ores, slag and ash",
+  "27":"Mineral fuels, oil and gas","28":"Inorganic chemicals","29":"Organic chemicals",
+  "30":"Pharmaceutical products","31":"Fertilisers","32":"Dyes, paints and inks",
+  "33":"Essential oils and cosmetics","34":"Soaps, waxes and cleaning products","35":"Glues and enzymes",
+  "36":"Explosives","37":"Photographic goods","38":"Miscellaneous chemical products","39":"Plastics",
+  "40":"Rubber","41":"Raw hides, skins and leather","42":"Leather goods and handbags","43":"Furskins",
+  "44":"Wood","45":"Cork","46":"Basketware","47":"Wood pulp","48":"Paper and paperboard",
+  "49":"Books and printed matter","50":"Silk","51":"Wool and animal hair","52":"Cotton",
+  "53":"Other vegetable fibres","54":"Man-made filaments","55":"Man-made staple fibres",
+  "56":"Wadding, felt and ropes","57":"Carpets","58":"Special woven fabrics","59":"Technical textiles",
+  "60":"Knitted fabrics","61":"Knitted apparel","62":"Woven apparel","63":"Other textile articles",
+  "64":"Footwear","65":"Headgear","66":"Umbrellas and walking sticks","67":"Feathers and artificial flowers",
+  "68":"Stone and cement articles","69":"Ceramics","70":"Glass","71":"Precious stones and metals",
+  "72":"Iron and steel","73":"Iron and steel articles","74":"Copper","75":"Nickel","76":"Aluminium",
+  "78":"Lead","79":"Zinc","80":"Tin","81":"Other base metals","82":"Tools and cutlery",
+  "83":"Miscellaneous metal articles","84":"Machinery","85":"Electrical machinery and electronics",
+  "86":"Railway equipment","87":"Vehicles","88":"Aircraft and spacecraft","89":"Ships and boats",
+  "90":"Optical, medical and precision instruments","91":"Clocks and watches","92":"Musical instruments",
+  "93":"Arms and ammunition","94":"Furniture and lighting","95":"Toys, games and sports equipment",
+  "96":"Miscellaneous manufactured articles","97":"Works of art and antiques"
+};
+const WEST = new Set(["EUU","USA","GBR","CAN","JPN","AUS","CHE","NOR","KOR","NZL"]);
+const SANCTIONED = new Set(["RUS","BLR","IRN","PRK"]);
+const EU27 = new Set(["AUT","BEL","BGR","HRV","CYP","CZE","DNK","EST","FIN","FRA","DEU","GRC","HUN",
+  "IRL","ITA","LVA","LTU","LUX","MLT","NLD","POL","PRT","ROU","SVK","SVN","ESP","SWE"]);
+
+/* ================= state ================= */
+let META, PRODUCTS, SUPPLIERS, NAMES = {};
+const pairCache = {};
+const state = { a: "CHN", b: "USA", mode: "impact", min: 50, maxDi: 0.5, energy: false, pharma: false, sanc: true, top: 5 };
+const open = new Set();
+let current = null;   // { rows, a, b }
+
+const $ = id => document.getElementById(id);
+const name = iso => EN_NAMES[iso] || NAMES[iso] || iso;
+const WITH_THE = new Set(["USA","GBR","NLD","ARE","EUU","PHL"]);
+const the = iso => (WITH_THE.has(iso) ? "the " : "") + name(iso);
+const poss = iso => { const s = the(iso); return s.endsWith("s") ? s + "'" : s + "'s"; };
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const pct = x => (x * 100).toFixed(x >= 0.1 ? 0 : 1) + "%";
+function money(k) {               // input in thousands of USD
+  const usd = k * 1000;
+  if (usd >= 1e9) return "$" + (usd / 1e9).toFixed(usd >= 1e11 ? 0 : 1) + "B";
+  if (usd >= 1e6) return "$" + (usd / 1e6).toFixed(usd >= 1e7 ? 0 : 1) + "M";
+  return "$" + Math.round(usd / 1e3) + "K";
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const shortDesc = d => { const i = d.indexOf(":"); return i > 0 ? d.slice(0, i) : d; };
+
+async function getJSON(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(r.status + " " + path);
+  return r.json();
+}
+
+/* ================= setup ================= */
+async function init() {
+  try {
+    [META, PRODUCTS, SUPPLIERS] = await Promise.all([
+      getJSON("data/meta.json"), getJSON("data/products.json"), getJSON("data/suppliers.json")]);
+    try { NAMES = await getJSON("data/names.json"); } catch (e) { NAMES = {}; }
+  } catch (e) {
+    $("lede").textContent = "Trade data could not be loaded. Open this page through a local web server (see the project instructions), not by double-clicking the file.";
+    return;
+  }
+  const yrs = META.years;
+  $("dataNote").textContent = `CEPII BACI (version ${META.baci_version}, ${META.hs}), built from UN Comtrade. BACI reconciles what exporters and importers report into one value per flow, at the 6-digit Harmonized System level. Values are yearly averages for ${yrs[0]}–${yrs[yrs.length - 1]} in US dollars, the last years before the 2025 tariff escalation.`;
+
+  readHash();
+  fillSelectors();
+  if (document.fonts) document.fonts.ready.then(fitSelects);
+  window.addEventListener("resize", fitSelects);
+  bindControls();
+  window.addEventListener("hashchange", () => { readHash(); fillSelectors(); update(); });
+  update();
+}
+
+function readHash() {
+  const m = location.hash.match(/^#([A-Z]{3})-([A-Z]{3})$/);
+  if (m) { state.a = m[1]; state.b = m[2]; }
+}
+
+function fillSelectors() {
+  const cs = META.countries.slice().sort((x, y) => name(x.iso).localeCompare(name(y.iso)));
+  const retal = cs.filter(c => c.can_retaliate);
+  if (!retal.some(c => c.iso === state.a)) state.a = retal.some(c => c.iso === "CHN") ? "CHN" : retal[0].iso;
+  const targets = cs.filter(c => c.iso !== state.a && !(state.a === "EUU" && c.eu_member));
+  if (!targets.some(c => c.iso === state.b)) state.b = targets.some(c => c.iso === "USA") ? "USA" : targets[0].iso;
+  $("selA").innerHTML = retal.map(c => `<option value="${c.iso}">${esc(cap(name(c.iso)))}</option>`).join("");
+  $("selB").innerHTML = targets.map(c => `<option value="${c.iso}">${esc(cap(name(c.iso)))}</option>`).join("");
+  $("selA").value = state.a; $("selB").value = state.b;
+  fitSelects();
+}
+function fitSelects() {
+  const m = $("measure");
+  for (const id of ["selA", "selB"]) {
+    const sel = $(id);
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) continue;
+    m.textContent = opt.textContent;
+    const em = parseFloat(getComputedStyle(sel).fontSize);
+    sel.style.width = Math.ceil(m.getBoundingClientRect().width + em * 1.15) + "px";
+  }
+}
+
+function bindControls() {
+  $("selA").addEventListener("change", e => { state.a = e.target.value; fillSelectors(); state.top = 5; open.clear(); update(); });
+  $("selB").addEventListener("change", e => { state.b = e.target.value; state.top = 5; open.clear(); update(); });
+  segment("segMode", v => { state.mode = v; });
+  segment("segMin", v => { state.min = +v; });
+  segment("segDi", v => { state.maxDi = +v; });
+  $("chkEnergy").addEventListener("change", e => { state.energy = e.target.checked; render(); });
+  $("chkPharma").addEventListener("change", e => { state.pharma = e.target.checked; render(); });
+  $("chkSanc").addEventListener("change", e => { state.sanc = e.target.checked; render(); });
+}
+function segment(id, set) {
+  const el = $(id);
+  el.addEventListener("click", e => {
+    const btn = e.target.closest("button"); if (!btn) return;
+    el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+    set(btn.dataset.v); render();
+  });
+}
+
+async function getPair(key) {
+  if (!(key in pairCache)) {
+    try { pairCache[key] = await getJSON(`data/pairs/${key}.json`); }
+    catch (e) { pairCache[key] = null; }
+  }
+  return pairCache[key];
+}
+
+async function update() {
+  const newHash = `#${state.a}-${state.b}`;
+  if (location.hash !== newHash) history.replaceState(null, "", newHash);
+  const bInfo = META.countries.find(c => c.iso === state.b);
+  const revAllowed = !!(bInfo && bInfo.can_retaliate);
+  $("summary").textContent = "Loading…";
+  const [rows, rev] = await Promise.all([
+    getPair(`${state.a}_${state.b}`),
+    revAllowed ? getPair(`${state.b}_${state.a}`) : Promise.resolve(null)]);
+  current = { rows, rev, revAllowed, a: state.a, b: state.b };
+  render();
+}
+
+/* ================= logic ================= */
+function excludedChapter(ch) {
+  return (state.energy && ch === "27") || (state.pharma && ch === "30");
+}
+
+function rank(rows) {
+  let small = 0, noSub = 0, excl = 0, tooDep = 0, asym = 0;
+  const out = [];
+  for (const [k, xba, xbw, maw, alt] of rows) {
+    if (xbw <= 0 || maw <= 0 || xba <= 0) continue;
+    if (xba < state.min * 1000) { small++; continue; }
+    const de = xba / xbw, di = xba / maw, sub = alt / xba;
+    if (di > state.maxDi) { tooDep++; continue; }
+    if (de <= di) { asym++; continue; }
+    if (sub < 1) { noSub++; continue; }
+    if (excludedChapter(k.slice(0, 2))) { excl++; continue; }
+    const impact = xba * de * (1 - di);
+    out.push({ k, xba, de, di, sub, impact, score: state.mode === "impact" ? impact : de * (1 - di) });
+  }
+  out.sort((x, y) => y.score - x.score);
+  return { list: out, small, noSub, excl, tooDep, asym };
+}
+
+function alternatives(k, a, b) {
+  const blocked = new Set([a, b]);
+  if (state.sanc && WEST.has(a)) SANCTIONED.forEach(s => blocked.add(s));
+  const list = (SUPPLIERS[k] || []).map(x => x[0]).filter(i => !blocked.has(i));
+  if (a === "EUU") {
+    return { ext: list.filter(i => !EU27.has(i)).slice(0, 3), int: list.filter(i => EU27.has(i)).slice(0, 2) };
+  }
+  return { ext: list.slice(0, 3), int: [] };
+}
+
+function textDE(de, A, B) {
+  if (de >= 0.5) return `${cap(B)} sells ${pct(de)} of its world exports of this product to ${A}, more than half, so it would struggle to find other buyers.`;
+  if (de >= 0.25) return `${cap(B)} sells ${pct(de)} of its world exports of this product to ${A}, a large share that would be costly to redirect.`;
+  return `${cap(B)} sells ${pct(de)} of its world exports of this product to ${A}; it could redirect much of that to other markets.`;
+}
+function textSUB(sub, A, B) {
+  const x = sub >= 100 ? Math.round(sub) : sub.toFixed(1);
+  if (sub >= 10) return `Other countries export ${x} times what ${A} buys from ${B}, so ${A} could replace it easily.`;
+  if (sub >= 2) return `Other countries export ${x} times what ${A} buys from ${B}, so ${A} could find the supply elsewhere.`;
+  return `Other countries export ${x} times what ${A} buys from ${B}: enough to replace it, though supply would be tight.`;
+}
+
+function textDI(di, A, B, PA) {
+  if (di < 0.15) return `${cap(B)} supplies only ${pct(di)} of ${PA} imports, so a tariff would barely touch ${PA} own supply.`;
+  if (di < 0.35) return `${cap(B)} supplies ${pct(di)} of ${PA} imports, a moderate reliance that other suppliers can cover.`;
+  return `${cap(B)} supplies ${pct(di)} of ${PA} imports, so a tariff would also raise ${PA} own costs.`;
+}
+
+/* ================= rendering ================= */
+function render() {
+  if (!current) return;
+  const { rows, a, b } = current;
+  const A = the(a), B = the(b);
+  $("artA").textContent = WITH_THE.has(a) ? "the " : "";
+  $("artB").textContent = WITH_THE.has(b) ? "the " : "";
+  fitSelects();
+  $("lede").innerHTML = `The best targets are products <span class="kb">${esc(B)}</span> sells mostly to <span class="ka">${esc(A)}</span>, that ${esc(A)} can easily buy from someone else, and that are worth enough to hurt.`;
+  document.title = `${name(a)} vs ${name(b)} | Tariff Retaliation Explorer`;
+
+  renderLeverage();
+  $("rankTitle").textContent = `Top targets: what ${cap(A)} could tariff`;
+  $("rankIntro").innerHTML = `Products ${esc(B)} sells to ${esc(A)}, best targets first. Each one shows how much is at stake, the share of ${esc(poss(b))} sales that depend on ${esc(A)} <span class="kb">(pink bar: higher hurts ${esc(B)} more)</span>, and the share of ${esc(poss(a))} supply that comes from ${esc(B)} <span class="ka">(blue bar: lower is safer for ${esc(A)})</span>.`;
+
+  if (!rows || rows.length === 0) {
+    $("summary").textContent = "";
+    $("ranking").innerHTML = `<li class="empty">There is no recorded trade from ${esc(B)} to ${esc(A)} in the data, so there is nothing to tariff. Pick another pair.</li>`;
+    $("more").innerHTML = ""; $("tree").innerHTML = "";
+    return;
+  }
+
+  const total = rows.reduce((s, r) => s + r[1], 0);
+  const { list, small, noSub, excl, tooDep, asym } = rank(rows);
+  let s = `<strong>${esc(cap(B))}</strong> exports <strong>${money(total)}</strong> a year to ${esc(A)} across ${rows.length.toLocaleString("en")} products. `;
+  const n = x => x.toLocaleString("en");
+  s += `<strong>${n(list.length)}</strong> qualify: ${n(small)} ${small === 1 ? "is" : "are"} below the minimum trade value, ${n(tooDep)} ${tooDep === 1 ? "is" : "are"} too important to ${esc(poss(a))} own supply, ${n(asym)} ${asym === 1 ? "is" : "are"} products where ${esc(A)} relies on ${esc(B)} more than the reverse, ${n(noSub)} ${noSub === 1 ? "has" : "have"} no realistic alternative supplier`;
+  s += excl ? `, and ${n(excl)} ${excl === 1 ? "is" : "are"} in sectors you left out.` : ".";
+  $("summary").innerHTML = s;
+
+  if (!list.length) {
+    $("ranking").innerHTML = `<li class="empty">No product passes the current filters. Lower the minimum trade value or include the sectors you left out.</li>`;
+    $("more").innerHTML = "";
+  } else {
+    $("ranking").innerHTML = list.slice(0, state.top).map((r, i) => card(r, i + 1, a, b, A, B)).join("");
+    if (list.length > state.top) {
+      const next = state.top === 5 ? 10 : state.top + 10;
+      $("more").innerHTML = `<button type="button" class="btn" id="btnMore">Show top ${Math.min(next, list.length)}</button>`;
+      $("btnMore").onclick = () => { state.top = next; render(); };
+    } else $("more").innerHTML = "";
+  }
+  renderTree(rows, A, B);
+}
+
+function card(r, n, a, b, A, B) {
+  const desc = PRODUCTS[r.k] || "Description not available";
+  const ch = r.k.slice(0, 2);
+  const alt = alternatives(r.k, a, b);
+  const ext = alt.ext.map(name).map(cap).join(", ") || "none among the largest exporters";
+  const inner = alt.int.length ? ` Within the EU: <b>${esc(alt.int.map(name).join(", "))}</b>.` : "";
+  const flag = ["27", "30"].includes(ch) && !(state.energy && ch === "27") && !(state.pharma && ch === "30")
+    ? `<span class="flag">${ch === "27" ? "Energy" : "Medicines"}: governments rarely tariff this sector</span><br>` : "";
+  return `<li class="card">
+    <div class="rank" aria-hidden="true">${n}</div>
+    <div>
+      <div class="code-label">HS code</div>
+      <div class="code" aria-label="HS code ${r.k}"><span>${r.k.slice(0,2)}</span><span>${r.k.slice(2,4)}</span><span>${r.k.slice(4,6)}</span></div>
+      <h3>${esc(desc)}</h3>
+      <p class="chapter">Chapter ${ch}, ${esc(CHAPTERS[ch] || "other")}</p>
+      ${flag}
+      <dl class="figures">
+        <div><dt>${esc(cap(B))} sells to ${esc(A)}</dt><dd>${money(r.xba)}/yr</dd></div>
+        <div><dt>Exposed value</dt><dd>${money(r.impact)}</dd></div>
+        <div><dt>Third-country supply</dt><dd>${r.sub >= 100 ? Math.round(r.sub) : r.sub.toFixed(1)}×</dd></div>
+      </dl>
+      <div class="bars">
+        <div class="bar b">
+          <div class="bar-head"><span>Share of ${esc(poss(b))} exports that go to ${esc(A)}</span><b>${pct(r.de)}</b></div>
+          <div class="track"><div class="fill" style="width:${(r.de*100).toFixed(1)}%"></div></div>
+        </div>
+        <div class="bar a">
+          <div class="bar-head"><span>Share of ${esc(poss(a))} imports that come from ${esc(B)}</span><b>${pct(r.di)}</b></div>
+          <div class="track"><div class="fill" style="width:${(r.di*100).toFixed(1)}%"></div></div>
+        </div>
+      </div>
+      <p class="explain">${esc(textDE(r.de, A, B))} ${esc(textDI(r.di, A, B, poss(a)))} ${esc(textSUB(r.sub, A, B))}</p>
+      <p class="alts">Largest alternative suppliers: <b>${esc(ext)}</b>.${inner}</p>
+    </div>
+  </li>`;
+}
+
+/* ---------- leverage index ---------- */
+function totalImpact(rows) {
+  if (!rows) return 0;
+  return rank(rows).list.reduce((s, r) => s + r.impact, 0);
+}
+
+function renderLeverage() {
+  const { rows, rev, revAllowed, a, b } = current;
+  const A = the(a), B = the(b);
+  if (!revAllowed) {
+    $("leverage").innerHTML = `<p class="lev-kicker">Leverage</p><p class="lev-note">${esc(cap(B))} cannot retaliate on its own: EU members share one trade policy. Pick the European Union as the target to compare both sides.</p>`;
+    return;
+  }
+  const iab = totalImpact(rows), iba = totalImpact(rev);
+  if (iab + iba <= 0) {
+    $("leverage").innerHTML = `<p class="lev-kicker">Leverage</p><p class="lev-note">Under the current filters, neither side has products it could tariff effectively.</p>`;
+    return;
+  }
+  const idx = Math.round(100 * iab / (iab + iba));
+  let title;
+  if (idx >= 60) title = `${cap(A)} holds the upper hand. It can hurt ${B} more than ${B} can hit back.`;
+  else if (idx > 40) title = `The two sides are roughly even. Each can hurt the other about as much.`;
+  else title = `${cap(B)} holds the upper hand. It could hit back harder than ${A} can hurt it.`;
+  $("leverage").innerHTML = `
+    <p class="lev-kicker">${esc(cap(poss(a)))} leverage over ${esc(B)}: <b>${idx} out of 100</b></p>
+    <p class="lev-title">${esc(title)}</p>
+    <div class="lev-bar" role="img" aria-label="${esc(cap(A))} ${idx}%, ${esc(B)} ${100 - idx}%">
+      <div class="lev-a" style="width:${idx}%"></div><div class="lev-b" style="width:${100 - idx}%"></div>
+    </div>
+    <div class="lev-legend">
+      <span>${esc(cap(A))} could put <b>${money(iab)}</b> of ${esc(poss(b))} exports at risk</span>
+      <span>${esc(cap(B))} could hit back at <b>${money(iba)}</b> of ${esc(poss(a))} exports</span>
+    </div>
+    <p class="lev-note">How to read it: we add up the exposed value of every product each side could target, then compare the two totals. At 50, both could do the same damage. Above 50, ${esc(A)} can hurt ${esc(B)} more than ${esc(B)} can hurt back; below 50, the opposite.</p>`;
+}
+
+/* ---------- sector explorer ---------- */
+function aggregate(rows, keyLen) {
+  const m = new Map();
+  for (const [k, xba, xbw, maw] of rows) {
+    const key = k.slice(0, keyLen);
+    let g = m.get(key);
+    if (!g) { g = { key, xba: 0, xbw: 0, maw: 0, first: k }; m.set(key, g); }
+    g.xba += xba; g.xbw += xbw; g.maw += maw;
+  }
+  for (const g of m.values()) {
+    g.de = g.xbw > 0 ? g.xba / g.xbw : 0;
+    g.di = g.maw > 0 ? g.xba / g.maw : 0;
+    g.impact = g.xba * g.de * (1 - g.di);
+  }
+  return [...m.values()].sort((x, y) => y.impact - x.impact);
+}
+
+function renderTree(rows, A, B) {
+  $("exploreIntro").textContent = `Every product ${B} sells to ${A}, grouped by HS chapter and heading and sorted by exposed value. Open a row to go one level deeper.`;
+  const head = `<div class="row head" role="row"><span>Chapter / heading / product</span><span class="num">${esc(cap(B))} sells</span><span class="num">Export dep.</span><span class="num">Import dep.</span><span class="num">Exposed value</span></div>`;
+  const chapters = aggregate(rows, 2);
+  let html = head;
+  for (const c of chapters) {
+    const isOpen = open.has(c.key);
+    html += row(0, c.key, CHAPTERS[c.key] || `Chapter ${c.key}`, c, isOpen, excludedChapter(c.key));
+    if (!isOpen) continue;
+    const sub = rows.filter(r => r[0].startsWith(c.key));
+    for (const h of aggregate(sub, 4)) {
+      const hOpen = open.has(h.key);
+      html += row(1, h.key, shortDesc(PRODUCTS[h.first] || ""), h, hOpen, excludedChapter(c.key));
+      if (!hOpen) continue;
+      const prods = sub.filter(r => r[0].startsWith(h.key));
+      for (const p of aggregate(prods, 6)) {
+        html += row(2, p.key, PRODUCTS[p.key] || "", p, null, excludedChapter(c.key));
+      }
+    }
+  }
+  $("tree").innerHTML = html;
+  $("tree").querySelectorAll("button.toggle").forEach(btn => btn.addEventListener("click", () => {
+    const k = btn.dataset.k;
+    open.has(k) ? open.delete(k) : open.add(k);
+    renderTree(current.rows, the(current.a), the(current.b));
+    const again = $("tree").querySelector(`button.toggle[data-k="${k}"]`);
+    if (again) again.focus();
+  }));
+}
+
+function row(level, key, label, g, isOpen, excluded) {
+  const title = esc(label);
+  const lead = isOpen === null
+    ? `<span class="leaf"><span class="hs">${key}</span><span class="name" title="${title}">${title}</span></span>`
+    : `<button type="button" class="toggle" data-k="${key}" aria-expanded="${isOpen}"><span class="caret" aria-hidden="true">▸</span><span class="hs">${key}</span><span class="name" title="${title}">${title}</span></button>`;
+  return `<div class="row lvl-${level}${excluded ? " excluded" : ""}">
+    ${lead}
+    <span class="num">${money(g.xba)}</span>
+    <span class="num de">${pct(g.de)}</span>
+    <span class="num di">${pct(g.di)}</span>
+    <span class="num">${money(g.impact)}</span>
+  </div>`;
+}
+
+init();
+</script>
+</body>
+</html>
