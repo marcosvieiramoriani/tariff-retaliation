@@ -74,6 +74,7 @@ header.top nav a:hover { color: var(--ink); text-decoration: underline; }
 #selA { color: var(--a); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231F5C99'/%3E%3C/svg%3E"); }
 #selB { color: var(--b); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A0336B'/%3E%3C/svg%3E"); }
 .lede { color: var(--muted); max-width: 40em; margin: 18px 0 0; font-size: 18px; }
+.howto { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
 .lede .ka { color: var(--a); font-weight: 600; }
 .lede .kb { color: var(--b); font-weight: 600; }
 
@@ -196,12 +197,24 @@ section.block > p.intro { color: var(--muted); max-width: 44em; margin: 0 0 20px
 .leaf { display: flex; gap: 10px; align-items: baseline; }
 .leaf .hs { font-weight: 700; font-stretch: 115%; min-width: 4.4em; }
 .row.excluded { opacity: .45; }
+.row .cell { min-width: 0; }
+.row.fails .num, .row.fails .name, .row.fails .hs { opacity: .55; }
+.why { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 3px; }
+.lvl-0 .why { padding-left: 22px; }
+.lvl-1 .why { padding-left: 46px; }
+.lvl-2 .why { padding-left: 51px; }
 .row .name { overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- method ---------- */
 .method { max-width: 44em; }
 .method h3 { font-size: 19px; margin: 32px 0 6px; }
 .method p, .method li { font-size: 16px; }
+.glance {
+  display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; margin: 8px 0 24px;
+  padding: 18px 20px; background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--a); border-radius: 6px; font-size: 15px;
+}
+.glance b { font-weight: 700; }
+@media (max-width: 640px) { .glance { grid-template-columns: 1fr; gap: 2px 0; } .glance span { margin-bottom: 10px; } }
 .formula {
   display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0;
   padding: 16px 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; font-size: 15px;
@@ -244,6 +257,7 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40
       which products hurt it most?
     </h1>
     <p class="lede" id="lede">Loading trade data…</p>
+    <p class="howto">New here? <a href="#method">See how the model works</a>, from the data to the rules and the real-world tests.</p>
   </section>
 
   <div class="controls" role="group" aria-label="Ranking options">
@@ -299,6 +313,16 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40
 
   <section class="block method" id="method">
     <h2>Method</h2>
+    <div class="glance">
+      <b>Question</b><span>If one country retaliates with tariffs, which of the other's products should it target, and does it have the upper hand at all?</span>
+      <b>Idea</b><span>Asymmetric interdependence: trade gives power to the side that needs the other less (Hirschman, 1945).</span>
+      <b>Data</b><span>CEPII BACI, built from UN Comtrade: bilateral trade for 200+ countries and about 5,600 products, averaged over 2022–2024.</span>
+      <b>Rules</b><span>A product qualifies only if the target relies on you more than you rely on it, your reliance stays under a cap (50% by default), and third countries could replace the supply.</span>
+      <b>Output</b><span>A ranking by exposed value (trade × export dependence × (1 − import dependence)) and a leverage index comparing both sides.</span>
+      <b>Tests</b><span>It singles out US soybeans for China, as Beijing did in 2018 and 2025; it shows the EU in the weaker position against the US, which is how the 2025 negotiation ended; and it partly matches China's 2020 measures against Australia.</span>
+      <b>Limits</b><span>A screening tool, not a forecast: no tariff rates, price effects, supply chains or politics. Details at the end of this section.</span>
+    </div>
+    <p>The project started as a university paper on how China could retaliate against US tariffs, which picked soybeans by hand. This tool turns that reasoning into a model any pair of countries can use.</p>
     <p>The tool follows one idea: a tariff works best on products the target country depends on selling to you, that you do not depend on buying from it, and that the rest of the world can supply instead.</p>
 
     <h3>Three ratios per product</h3>
@@ -312,6 +336,16 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40
       <b>Exposed value</b><span>Trade value × export dependence × (1 − import dependence). The part of the flow the target could not easily sell elsewhere, discounted by the cost to you.</span>
       <b>Dependence only</b><span>Export dependence × (1 − import dependence). Surfaces small, highly exposed niches, often the politically sensitive ones.</span>
     </div>
+    <h3>Worked example: US soybeans, from China's side</h3>
+    <div class="formula">
+      <b>Trade</b><span>The US sells China $15.3B of soybeans a year.</span>
+      <b style="color:var(--b)">Export dependence</b><span>That is 52% of all US soybean exports, so the US has few other buyers.</span>
+      <b style="color:var(--a)">Import dependence</b><span>US beans are 29% of China's soybean imports, under the 50% cap.</span>
+      <b>Asymmetry</b><span>52% is above 29%: the US needs China more than China needs the US. Rule passed.</span>
+      <b>Substitution</b><span>Third countries export 4.0 times what China buys from the US, with Brazil the largest. Rule passed.</span>
+      <b>Exposed value</b><span>$15.3B × 0.52 × (1 − 0.29) ≈ <b>$5.7B</b>, the highest of any US product.</span>
+    </div>
+    <p>The leverage index repeats this for every product in both directions and compares the totals. With a $10M minimum and no sectors left out, China could put about $15.5B of US exports at risk and the US about $14.5B of Chinese exports: 15.5 ÷ (15.5 + 14.5) ≈ 52 out of 100, an even match.</p>
     <p>Exposed value is a score in dollars, not a forecast of losses. It does not know the tariff rate, how prices would react or how long redirecting sales would take. Use it to compare products and countries, not to predict what anyone would lose.</p>
     <p>Ratios for chapters and headings are computed from summed trade flows, not averaged across products, so large products weigh more.</p>
     <h3>Three fixed rules</h3>
@@ -327,6 +361,10 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40
 
     <h3>Data</h3>
     <p id="dataNote">CEPII BACI, built from UN Comtrade. BACI reconciles what exporters and importers report into one value per flow, at the 6-digit Harmonized System level (about 5,600 products). Values are yearly averages in US dollars.</p>
+    <p><b>Why BACI.</b> UN Comtrade is the official source, but the same flow is reported twice, by the exporter and by the importer, and the two figures rarely match (valuation differences, re-exports, late reporters). BACI, produced by the French research centre CEPII, reconciles both into a single value, covers more than 200 countries with the same product codes, and is freely downloadable and widely used in academic research. Trade Map, used in the original paper, has no open bulk download, so it cannot feed a tool that covers every pair of countries.</p>
+    <p><b>Why a three-year average.</b> A single year can be distorted by a bad harvest, a price spike or one large order (a few aircraft can move billions). Averaging three years keeps the structural dependencies and smooths out accidents.</p>
+    <p><b>Why 2022–2024.</b> They are the latest years BACI publishes. They also come before the 2025 tariff escalation, so they show dependencies as they were before retaliation changed trade flows. 2020–2021 are left out because the pandemic distorted trade.</p>
+    <p><b>Why the HS 6-digit level.</b> It is the most detailed product classification that is identical in every country. Chapters (2 digits) and headings (4 digits) are built by adding up products, which is how the sector explorer works.</p>
 
     <h3>Does it work? The soybean test</h3>
     <p>An earlier hand-made analysis of China's options against the US singled out soybeans (HS 120190). The model reaches the same answer on its own, and so did Beijing: China targeted US soybeans in 2018 and again in 2025.</p>
@@ -339,12 +377,20 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding: 22px 0 40
       </tbody>
     </table>
 
+    <h3>A second test: the EU against the US in 2025</h3>
+    <p>With energy and medicines left out, the leverage index gives the European Union about 30 out of 100 against the United States: the US could hit back roughly twice as hard. In 2025 the EU prepared countermeasures on up to €93 billion of US goods but never applied them. In July it accepted a deal instead: 15% US tariffs on most EU exports, a commitment to remove EU tariffs on US industrial goods, and the countermeasures suspended.</p>
+
+    <h3>A third, partial test: China against Australia in 2020</h3>
+    <p>After a diplomatic clash in 2020, China hit Australian barley, wine, beef, coal, lobster, timber and cotton with duties, bans and customs delays. With 2022–2024 data, the model places beef, wood and cotton among its qualifying targets. It also leaves iron ore alone: China relies on Australia for most of its iron ore imports, so the model rules it out, and Beijing never touched it either.</p>
+    <p>Barley and wine barely register, and the reason is honest rather than flattering: by 2022 those exports to China had already collapsed because of the 2020 duties. This test uses data from after the conflict, so it only partly checks the model. A proper backtest with pre-2020 data is the next step.</p>
+
     <h3>What the model leaves out</h3>
     <ul>
       <li>Political and strategic judgement. Energy and medicines score high because they are large flows, yet governments rarely tariff them. Use the "Leave out" filters to see the difference.</li>
       <li>Supply chains. Tariffs on components raise costs for your own manufacturers, even when other suppliers exist.</li>
       <li>Time. Switching suppliers takes contracts, logistics and months; the substitution ratio measures capacity, not speed.</li>
       <li>Reaction. It is a snapshot, not a model of escalation, WTO rules or exchange rates.</li>
+      <li>Ownership. Trade data shows where a product ships from, not who owns the factory. Many "US" car exports to Europe come from European brands' US plants, and some Chinese chip exports to Korea come from Korean-owned fabs.</li>
       <li>Sanctions are simplified: for Western countries, Russia, Belarus, Iran and North Korea are not counted as alternative suppliers.</li>
       <li>EU member states share one trade policy, so they can be targeted but only the EU as a whole can retaliate.</li>
     </ul>
@@ -446,7 +492,7 @@ async function init() {
     return;
   }
   const yrs = META.years;
-  $("dataNote").textContent = `CEPII BACI (version ${META.baci_version}, ${META.hs}), built from UN Comtrade. BACI reconciles what exporters and importers report into one value per flow, at the 6-digit Harmonized System level. Values are yearly averages for ${yrs[0]}–${yrs[yrs.length - 1]} in US dollars, the last years before the 2025 tariff escalation.`;
+  $("dataNote").textContent = `CEPII BACI (version ${META.baci_version}, ${META.hs}), built from UN Comtrade. BACI reconciles what exporters and importers report into one value per flow, at the 6-digit Harmonized System level. Values are yearly averages for ${yrs[0]}–${yrs[yrs.length - 1]} in US dollars.`;
 
   readHash();
   fillSelectors();
@@ -710,6 +756,19 @@ function aggregate(rows, keyLen) {
   return [...m.values()].sort((x, y) => y.impact - x.impact);
 }
 
+function ruleFail(r, A, B) {
+  const [, xba, xbw, maw, alt] = r;
+  if (xba <= 0 || xbw <= 0 || maw <= 0) return null;
+  const de = xba / xbw, di = xba / maw, sub = alt / xba;
+  if (di > state.maxDi) return `Not a target: ${A} relies on ${B} for ${pct(di)} of its imports, above the ${pct(state.maxDi)} cap.`;
+  if (de <= di) return `Not a target: ${A} relies on ${B} more than the reverse.`;
+  if (sub < 1) return `Not a target: other countries could not replace the supply.`;
+  return null;
+}
+function noneQualify(rs, A, B) {
+  return rs.every(r => ruleFail(r, A, B) !== null);
+}
+
 function renderTree(rows, A, B) {
   $("exploreIntro").textContent = `Every product ${B} sells to ${A}, grouped by HS chapter and heading and sorted by exposed value. Open a row to go one level deeper.`;
   const head = `<div class="row head" role="row"><span>Chapter / heading / product</span><span class="num">${esc(cap(B))} sells</span><span class="num">Export dep.</span><span class="num">Import dep.</span><span class="num">Exposed value</span></div>`;
@@ -717,16 +776,27 @@ function renderTree(rows, A, B) {
   let html = head;
   for (const c of chapters) {
     const isOpen = open.has(c.key);
-    html += row(0, c.key, CHAPTERS[c.key] || `Chapter ${c.key}`, c, isOpen, excludedChapter(c.key));
-    if (!isOpen) continue;
     const sub = rows.filter(r => r[0].startsWith(c.key));
+    const cNone = noneQualify(sub, A, B);
+    html += row(0, c.key, CHAPTERS[c.key] || `Chapter ${c.key}`, c, isOpen, excludedChapter(c.key), cNone ? "No product in this chapter qualifies as a target." : "");
+    if (!isOpen) continue;
     for (const h of aggregate(sub, 4)) {
       const hOpen = open.has(h.key);
-      html += row(1, h.key, shortDesc(PRODUCTS[h.first] || ""), h, hOpen, excludedChapter(c.key));
-      if (!hOpen) continue;
       const prods = sub.filter(r => r[0].startsWith(h.key));
+      let hNote = "";
+      if (noneQualify(prods, A, B)) {
+        hNote = prods.length === 1 ? (ruleFail(prods[0], A, B) || "") : "No product in this heading qualifies as a target.";
+        if (prods.length > 1) {
+          const all = prods.reduce((t, r) => [t[0], t[1] + r[1], t[2] + r[2], t[3] + r[3], t[4] + r[4]], ["", 0, 0, 0, 0]);
+          const why = ruleFail(all, A, B);
+          if (why) hNote = why.replace("Not a target:", "Not a target overall:");
+        }
+      }
+      html += row(1, h.key, shortDesc(PRODUCTS[h.first] || ""), h, hOpen, excludedChapter(c.key), hNote);
+      if (!hOpen) continue;
+      const byKey = new Map(prods.map(r => [r[0], r]));
       for (const p of aggregate(prods, 6)) {
-        html += row(2, p.key, PRODUCTS[p.key] || "", p, null, excludedChapter(c.key));
+        html += row(2, p.key, PRODUCTS[p.key] || "", p, null, excludedChapter(c.key), ruleFail(byKey.get(p.key), A, B) || "");
       }
     }
   }
@@ -740,13 +810,13 @@ function renderTree(rows, A, B) {
   }));
 }
 
-function row(level, key, label, g, isOpen, excluded) {
+function row(level, key, label, g, isOpen, excluded, note = "") {
   const title = esc(label);
   const lead = isOpen === null
     ? `<span class="leaf"><span class="hs">${key}</span><span class="name" title="${title}">${title}</span></span>`
     : `<button type="button" class="toggle" data-k="${key}" aria-expanded="${isOpen}"><span class="caret" aria-hidden="true">▸</span><span class="hs">${key}</span><span class="name" title="${title}">${title}</span></button>`;
-  return `<div class="row lvl-${level}${excluded ? " excluded" : ""}">
-    ${lead}
+  return `<div class="row lvl-${level}${excluded ? " excluded" : ""}${note ? " fails" : ""}">
+    <div class="cell">${lead}${note ? `<div class="why">${esc(note)}</div>` : ""}</div>
     <span class="num">${money(g.xba)}</span>
     <span class="num de">${pct(g.de)}</span>
     <span class="num di">${pct(g.di)}</span>
